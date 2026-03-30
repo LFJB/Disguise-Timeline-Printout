@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="disguise-plugin-window-size" content="900,700">
+<meta name="disguise-plugin-window-min-size" content="600,400">
+<meta name="disguise-plugin-window-resizable" content="true">
+<title>Timeline Exporter</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<style>
+  :root {
+    --bg: #141419;
+    --bg2: #1c1c24;
+    --bg3: #22222e;
+    --border: #2e2e3e;
+    --accent: #4a9eff;
+    --accent2: #2d7dd2;
+    --text: #e4e4f0;
+    --text2: #8b8b9e;
+    --green: #4caf82;
+    --orange: #e8a44a;
+    --red: #e05555;
+    --purple: #9b7fe8;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f5f5; --bg2: #fff; --bg3: #ebebeb;
+      --border: #d0d0d0; --accent: #1565c0; --accent2: #0d47a1;
+      --text: #111; --text2: #666;
+      --green: #2e7d52; --orange: #b45309; --red: #c62828; --purple: #6a3fc8;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 12px;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .topbar h1 { font-size: 14px; font-weight: 600; flex: 1; }
+  .topbar .subtitle { font-size: 10px; color: var(--text2); }
+
+  button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent2); }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover:not(:disabled) { background: var(--border); }
+  .btn-export { background: var(--green); color: #fff; }
+  .btn-export:hover:not(:disabled) { opacity: 0.85; }
+
+  /* ── Status bar ── */
+  .statusbar {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 5px 16px;
+    font-size: 10px;
+    color: var(--text2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .statusbar.ok { color: var(--green); }
+  .statusbar.error { color: var(--red); }
+  .statusbar.loading { color: var(--accent); }
+  .spinner {
+    width: 10px; height: 10px;
+    border: 2px solid transparent;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .statusbar.loading .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Main content ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+  }
+
+  /* ── Track blocks ── */
+  .track-block {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .track-header {
+    background: var(--bg2);
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .track-header:hover { background: var(--bg3); }
+  .track-title { font-weight: 700; font-size: 13px; }
+  .track-meta { color: var(--text2); font-size: 10px; }
+  .chevron { font-size: 10px; color: var(--text2); transition: transform 0.2s; }
+  .track-block.collapsed .chevron { transform: rotate(-90deg); }
+  .track-body { display: flex; flex-direction: column; }
+  .track-block.collapsed .track-body { display: none; }
+
+  /* ── Section label ── */
+  .section-label {
+    padding: 5px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text2);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Cues table ── */
+  .cues-table { width: 100%; border-collapse: collapse; }
+  .cues-table th {
+    background: var(--bg3);
+    padding: 4px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+  }
+  .cues-table td {
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .cues-table tr:last-child td { border-bottom: none; }
+  .cues-table tr:hover td { background: var(--bg3); }
+  .mono { font-family: 'Consolas', monospace; font-size: 10px; }
+  .cue-note { color: var(--text2); font-style: italic; }
+  .cue-name { font-weight: 600; }
+  .tc { color: var(--accent); }
+
+  /* ── Layers grid ── */
+  .layers-wrap {
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 8px;
+    background: var(--bg);
+  }
+  .layer-card {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .layer-card-head {
+    padding: 7px 10px;
+    font-weight: 700;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+  .layer-card-head.content { background: #1a3a2a; color: var(--green); }
+  .layer-card-head.fx      { background: #1e1a3a; color: var(--purple); }
+  .layer-card-head.audio   { background: #2a1a1a; color: var(--orange); }
+  .layer-card-head.disabled{ background: var(--bg3); color: var(--text2); }
+  .layer-card-head.unknown { background: #2a2a1a; color: #bbb; }
+  @media (prefers-color-scheme: light) {
+    .layer-card-head.content { background: #e8f5ee; color: var(--green); }
+    .layer-card-head.fx      { background: #ede8f8; color: var(--purple); }
+    .layer-card-head.audio   { background: #fdf3e7; color: var(--orange); }
+    .layer-card-head.disabled{ background: #f0f0f0; color: var(--text2); }
+    .layer-card-head.unknown { background: #f5f5e8; color: #888; }
+  }
+  .type-badge {
+    font-size: 9px; font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background: rgba(128,128,128,0.15);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .layer-card-body { padding: 7px 10px; background: var(--bg2); }
+  .layer-timing {
+    font-size: 10px;
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    padding: 4px 10px;
+    margin: -7px -10px 8px -10px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    letter-spacing: 0.03em;
+  }
+  .layer-timing.content  { background: rgba(76,175,130,0.15);  color: #4caf82; }
+  .layer-timing.fx       { background: rgba(155,127,232,0.15); color: #9b7fe8; }
+  .layer-timing.audio    { background: rgba(232,164,74,0.15);  color: #e8a44a; }
+  .layer-timing.disabled { background: rgba(100,120,160,0.08); color: var(--text2); }
+  .layer-timing.unknown  { background: rgba(100,120,160,0.08); color: var(--text2); }
+  .resource-box {
+    background: var(--bg3);
+    border-left: 3px solid var(--orange);
+    border-radius: 3px;
+    padding: 4px 7px;
+    font-size: 10px;
+    color: var(--orange);
+    margin-bottom: 6px;
+    word-break: break-all;
+    font-family: monospace;
+  }
+  .fields-table { width: 100%; border-collapse: collapse; }
+  .fields-table td {
+    padding: 2px 3px;
+    font-size: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .fields-table tr:last-child td { border-bottom: none; }
+  .fields-table td:first-child { color: var(--text2); width: 42%; font-family: monospace; }
+  .fields-table td:last-child { font-family: monospace; color: var(--text); }
+  .no-fields { font-size: 10px; color: var(--text2); font-style: italic; }
+
+  /* ── Sections ── */
+  .section-block { border-bottom: 1px solid var(--border); }
+  .section-block:last-child { border-bottom: none; }
+  .section-hdr {
+    padding: 6px 14px;
+    background: var(--bg2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .sec-num {
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .sec-tc { font-weight: 700; color: var(--accent); font-size: 11px; }
+  .sec-note { color: var(--text); font-style: italic; font-size: 11px; }
+  .sec-range { margin-left: auto; font-size: 10px; color: var(--text2); font-family: monospace; }
+  .tag-badge {
+    font-size: 9px; font-weight: 700;
+    padding: 2px 5px; border-radius: 3px;
+    background: var(--bg3); color: var(--text2);
+    border: 1px solid var(--border);
+  }
+  .no-layers {
+    padding: 8px 14px;
+    font-size: 10px;
+    color: var(--text2);
+    font-style: italic;
+    background: var(--bg);
+  }
+  .xfade-badge {
+    font-size: 9px;
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(74,158,255,0.1);
+    border: 1px solid rgba(74,158,255,0.3);
+    border-radius: 3px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
+  .animated-tag {
+    font-size: 9px;
+    color: var(--purple);
+    font-weight: 600;
+    font-style: normal;
+  }
+  .anim-row td { color: var(--purple) !important; }
+  .key-pt {
+    display: inline-block;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 9px;
+    font-family: monospace;
+    margin: 1px 1px;
+  }
+  .key-arrow {
+    color: var(--text2);
+    font-size: 9px;
+    margin: 0 1px;
+  }
+
+  /* ── Report view (print mode) ── */
+  #reportFrame {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+    z-index: 100;
+  }
+  .report-bar {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 101;
+    background: #1a1a2e;
+    padding: 8px 14px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .report-bar.visible { display: flex !important; }
+  @media print {
+    .topbar, .statusbar, .report-bar { display: none !important; }
+    #reportFrame { display: block !important; position: static !important; height: auto !important; }
+    .content { display: none !important; }
+  }
+
+  /* ── Empty / error states ── */
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: var(--text2);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13px; margin-bottom: 6px; }
+  .empty-state small { font-size: 10px; }
+  .error-box {
+    background: #3a1a1a; border: 1px solid var(--red);
+    border-radius: 5px; padding: 10px 14px;
+    color: var(--red); font-size: 11px; margin-bottom: 12px;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Timeline Exporter</h1>
+    <div class="subtitle">Track-by-track extraction for show reproduction</div>
+  </div>
+  <button class="btn-primary" id="btnExtract" onclick="extractTimeline()">&#x21BB; Extract</button>
+  <button class="btn-export" id="btnExport" onclick="exportReport()" disabled>&#x2193; Report</button>
+</div>
+
+<div class="report-bar" id="reportBar">
+  <button class="btn-secondary" onclick="closeReport()" style="font-size:11px">&#8592; Back</button>
+  <button class="btn-primary" onclick="document.getElementById('reportFrame').contentWindow.print()" style="font-size:11px">Print / PDF</button>
+</div>
+<iframe id="reportFrame" name="reportFrame"></iframe>
+
+<div class="statusbar" id="statusbar">
+  <div class="spinner"></div>
+  <span id="statusMsg">Ready — click "Extract" to read the timeline</span>
+</div>
+
+<div class="content" id="content">
+  <div class="empty-state">
+    <div class="icon">🎬</div>
+    <p>No data extracted</p>
+    <small>Click <strong>Extract</strong> to read the tracks, cues and layers of the open timeline.</small>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// Python 2.7 script to run inside Designer
+// ─────────────────────────────────────────────
+const EXTRACTOR_SCRIPT = `
+import json, re
+
+def safe(fn, default=''):
+    try: return fn()
+    except: return default
+
+def res_desc(res):
+    if res is None: return None
+    d = safe(lambda: str(res.description), '')
+    if d and d not in ('None', ''): return d
+    return None
+
+def key_value(ks, i):
+    k = ks.key(i)
+    try:
+        v = k.v
+        if v is not None: return round(float(v), 5)
+    except: pass
+    try:
+        v = k.s
+        if v is not None: return str(v)
+    except: pass
+    try:
+        r = k.r
+        if r is not None: return res_desc(r) or str(r)
+    except: pass
+    return None
+
+def resolve_opt(v, opts):
+    # Convert integer enum value to its human-readable option name
+    if opts and isinstance(v, (int, float)):
+        idx = int(round(float(v)))
+        if 0 <= idx < len(opts):
+            return str(opts[idx])
+    return v
+
+def get_fields(layer):
+    # Return ordered list [[label, value], ...] to preserve Designer's sequence order
+    fields = []
+    n = safe(lambda: layer.nSequences(), 0)
+    t0 = safe(lambda: float(layer.tStart), 0)
+    for i in range(n):
+        try:
+            fs = layer.sequence(i)
+            label = safe(lambda: str(fs.userName) or str(fs.name), '')
+            if not label: continue
+            # Get option names for this field (non-empty only for enum/option types)
+            opts = []
+            try:
+                o = fs.options()
+                if o: opts = [str(x) for x in o]
+            except: pass
+            ks = fs.sequence
+            nk = safe(lambda: ks.nKeys(), 0) if ks else 0
+            if nk > 0:
+                raw_keys = []
+                for ki in range(nk):
+                    try:
+                        t = float(ks.t(ki))
+                        v = key_value(ks, ki)
+                        raw_keys.append({'t': round(t, 2), 'v': v})
+                    except: pass
+                if not raw_keys: continue
+                # Default check on raw values before resolution
+                try:
+                    dv = str(fs.defaultValue)
+                    if len(raw_keys) == 1 and str(raw_keys[0]['v']) == dv:
+                        continue
+                except: pass
+                # Resolve option names
+                keys = [{'t': k['t'], 'v': resolve_opt(k['v'], opts)} for k in raw_keys]
+                fields.append([label, keys[0]['v'] if len(keys) == 1 else keys])
+            else:
+                # No keyframes: evaluate and compare to default
+                try:
+                    ev = round(fs.eval(t0, 0), 5)
+                    try:
+                        dv = float(str(fs.defaultValue))
+                        if abs(ev - dv) < 0.0001: continue
+                    except: pass
+                    fields.append([label, resolve_opt(ev, opts)])
+                except: pass
+        except: pass
+    return fields
+
+def module_type(layer):
+    try:
+        mt = layer.moduleType
+        n = getattr(mt, '__name__', None)
+        if n: return str(n)
+        s = str(mt)
+        m = re.search(r'_blipValue\((\w+)\)|class (\w+)', s)
+        if m: return m.group(1) or m.group(2)
+        return s
+    except: return ''
+
+def get_resource(layer):
+    try:
+        m = layer.module
+        clip = getattr(m, 'video', None)
+        if clip is not None:
+            asset = getattr(clip, 'file', None)
+            if asset is not None:
+                d = res_desc(asset)
+                if d: return d
+        for attr in ['resource', 'file', 'image', 'audio']:
+            r = getattr(m, attr, None)
+            if r is not None:
+                d = res_desc(r)
+                if d: return d
+    except: pass
+    return None
+
+def get_layer(layer):
+    return {
+        'name':    safe(lambda: str(layer.name), ''),
+        'on':      safe(lambda: bool(layer.render), True),
+        'start':   safe(lambda: float(layer.tStart), 0),
+        'end':     safe(lambda: float(layer.tEnd), 0),
+        'type':    module_type(layer),
+        'file':    get_resource(layer),
+        'params':  get_fields(layer),
+    }
+
+def get_cue(track, beat):
+    c = {'beat': beat, 'note': '', 'section': False, 'tags': []}
+    try: c['tc'] = float(track.beatToTime(beat))
+    except: pass
+    try:
+        note = track.noteAtBeat(beat)
+        c['note'] = str(note) if note else ''
+    except: pass
+    try:
+        cue = track.cueAtBeat(beat)
+        if cue:
+            c['section'] = safe(lambda: bool(cue.section), False)
+            if not c['note']:
+                c['note'] = safe(lambda: str(cue.note) if cue.note else '', '')
+            try:
+                for tag in cue.getTags():
+                    c['tags'].append({'type': safe(lambda: int(tag.type),0), 'text': safe(lambda: str(tag.text),'')})
+            except: pass
+            try:
+                ti = cue.sectionTransition
+                if ti is not None:
+                    fade = safe(lambda: float(ti.fadeDurationBeats), 0)
+                    dur  = safe(lambda: float(ti.durationBeats), 0)
+                    mode = safe(lambda: int(ti.mode), 0)
+                    if fade > 0 or dur > 0:
+                        c['xfade'] = {'fade': round(fade, 3), 'dur': round(dur, 3), 'mode': mode}
+            except: pass
+    except: pass
+    return c
+
+def track_name(track):
+    # Track inherits Resource — name comes from description (path basename)
+    d = safe(lambda: str(track.description), '')
+    if d and d not in ('None', '', 'Track'):
+        return d
+    # Try path basename: "objects/track/MyName.apx" -> "MyName"
+    p = safe(lambda: str(track.path), '')
+    if p and p != 'None':
+        base = p.split('/')[-1].split('\\\\')[-1]
+        if '.' in base:
+            base = base.rsplit('.', 1)[0]
+        if base:
+            return base
+    return safe(lambda: str(track.name), 'Track')
+
+def get_track(track):
+    all_layers = [get_layer(l) for l in safe(lambda: list(track.layers), [])]
+    beat_list = [float(b) for b in safe(lambda: track.cueBeats(), [])]
+    track_len = safe(lambda: float(track.lengthInBeats), 0)
+
+    sections = []
+    for i, beat in enumerate(beat_list):
+        end_beat = beat_list[i+1] if i+1 < len(beat_list) else track_len
+        active = [l for l in all_layers if l['start'] < end_beat and l['end'] > beat]
+        sections.append({
+            'cue': get_cue(track, beat),
+            'end': end_beat,
+            'layers': active,
+        })
+
+    return {
+        'name':     track_name(track),
+        'beats':    track_len,
+        'bpm':      safe(lambda: float(track.bpm), 60),
+        'sections': sections,
+    }
+
+result = {'project': {}, 'tracks': [], 'errors': []}
+result['project']['name'] = safe(lambda: str(state.projectName), '')
+
+found = False
+try:
+    sl = guisystem.currentSetList
+    if sl is not None:
+        for t in sl.tracks:
+            result['tracks'].append(get_track(t))
+        found = True
+except Exception as e:
+    result['errors'].append('setlist: ' + str(e))
+
+if not found:
+    try:
+        result['tracks'].append(get_track(guisystem.track))
+    except Exception as e:
+        result['errors'].append('track: ' + str(e))
+
+result_json = json.dumps(result)
+print(result_json)
+result_json
+`;
+
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+let lastData = null;
+var currentBpm = 60;
+
+function setStatus(msg, type = '') {
+  const bar = document.getElementById('statusbar');
+  bar.className = 'statusbar ' + type;
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// ─────────────────────────────────────────────
+// Extract from Designer
+// ─────────────────────────────────────────────
+async function extractTimeline() {
+  const btn = document.getElementById('btnExtract');
+  btn.disabled = true;
+  setStatus('Extraction en cours…', 'loading');
+
+  try {
+    const res = await fetch('/api/session/python/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script: EXTRACTOR_SCRIPT, returnType: 'str' }),
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    const response = await res.json();
+
+    if (response.status && response.status.code !== 0) {
+      throw new Error(response.status.message || 'Designer error');
+    }
+
+    // Designer puts output in d3Log/pythonLog; returnValue may be the string "null"
+    let raw = null;
+    var rv = response.returnValue;
+    if (rv !== null && rv !== undefined && rv !== 'null') {
+      try { raw = (typeof rv === 'string') ? JSON.parse(rv) : rv; } catch(e) {}
+    }
+    if (!raw) {
+      // Parse JSON from d3Log or pythonLog (format: "{...}\nPython script took Xms\n")
+      var logStr = response.d3Log || response.pythonLog || '';
+      var m = logStr.match(/^(\{[\s\S]*\})/);
+      if (m) { try { raw = JSON.parse(m[1]); } catch(e) {} }
+    }
+    if (!raw) throw new Error('Réponse vide de Designer. Réponse brute : ' + JSON.stringify(response));
+
+    lastData = raw;
+    renderData(raw);
+
+    const nTracks = (raw.tracks || []).length;
+    const nCues   = (raw.tracks || []).reduce((s, t) => s + (t.sections || []).length, 0);
+    const nLayers = (raw.tracks || []).reduce((s, t) =>
+      s + (t.sections || []).reduce((ss, sec) => ss + (sec.layers || []).length, 0), 0);
+    setStatus(`Extracted: ${nTracks} track(s), ${nLayers} layer(s), ${nCues} cue(s)`, 'ok');
+
+    document.getElementById('btnExport').disabled = false;
+
+    if ((raw.errors || []).length > 0) {
+      setStatus(`Extracted with warnings — ${raw.errors.join(' | ')}`, 'ok');
+    }
+  } catch (err) {
+    setStatus('Error: ' + err.message, 'error');
+    document.getElementById('content').innerHTML =
+      `<div class="error-box">${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function beatsToTC(beats, bpm) {
+  bpm = bpm || 60;
+  var sec = beats * (60 / bpm);
+  var h = Math.floor(sec / 3600);
+  var m = Math.floor((sec % 3600) / 60);
+  var s = Math.floor(sec % 60);
+  var f = Math.floor((sec - Math.floor(sec)) * 25);
+  return h > 0
+    ? pad(h)+':'+pad(m)+':'+pad(s)+':'+pad(f)
+    : pad(m)+':'+pad(s)+':'+pad(f);
+}
+
+function classifyLayer(layer) {
+  if (!layer.on) return 'disabled';
+  var t = (layer.type || '').toLowerCase();
+  if (/video|image|text|web|stream|capture|ndi|picture/.test(t)) return 'content';
+  if (/fx|effect|blur|colo|lut|warp|mask|grade/.test(t)) return 'fx';
+  if (/audio|sound/.test(t)) return 'audio';
+  return 'unknown';
+}
+
+// Known defaults — skip if static value matches
+var DEFAULTS = {
+  'opacity':1,'alpha':1,'transparency':0,'speed':1,'volume':1,
+  'brightness':1,'contrast':1,'saturation':1,'gain':1,'gamma':1,'exposure':0,
+  'x':0,'y':0,'z':0,'rotation':0,'scale':1,'scale x':1,'scale y':1,'size':1,
+  'left':0,'right':0,'top':0,'bottom':0,
+  'crop left':0,'crop right':0,'crop top':0,'crop bottom':0,'softness':0,'crop softness':0,
+  'r':1,'g':1,'b':1,'red':1,'green':1,'blue':1,
+  'position x':0,'position y':0,'horizontal':0,'vertical':0,
+};
+
+function isDefaultVal(name, val) {
+  var key = (name || '').toLowerCase().trim();
+  if (!(key in DEFAULTS)) return false;
+  var v = parseFloat(val);
+  return !isNaN(v) && Math.abs(v - DEFAULTS[key]) < 0.0001;
+}
+
+function fmtNum(v) {
+  if (typeof v === 'number') return v % 1 === 0 ? String(v) : parseFloat(v.toFixed(4)) + '';
+  return String(v === null || v === undefined ? '—' : v);
+}
+
+function fmtVal(v) {
+  if (v === null || v === undefined) return '—';
+  // Animated: array of {t, v} keyframes
+  if (Array.isArray(v) && v.length > 0 && v[0] !== null && typeof v[0] === 'object' && 't' in v[0]) {
+    var pts = v.map(function(k) {
+      return '<span class="key-pt">' + beatsToTC(k.t, currentBpm) + '&nbsp;:&nbsp;' + fmtNum(k.v) + '</span>';
+    }).join('<span class="key-arrow">&#8594;</span>');
+    return '<span class="animated-tag">&#10231; ' + v.length + ' keys</span>' + pts;
+  }
+  return fmtNum(v);
+}
+
+// ─────────────────────────────────────────────
+// Layer card
+// ─────────────────────────────────────────────
+function renderLayerCard(layer, bpm) {
+  bpm = bpm || currentBpm || 60;
+  var kind = classifyLayer(layer);
+  var name = layer.name || '(unnamed)';
+  var mtype = layer.type || '?';
+  var disTag = layer.on ? '' : ' <span style="opacity:.5">[OFF]</span>';
+  var tcStart = beatsToTC(layer.start || 0, bpm);
+  var tcEnd   = beatsToTC(layer.end   || 0, bpm);
+  var timingHtml = '<div class="layer-timing ' + kind + '">' + tcStart + ' &#8594; ' + tcEnd + '</div>';
+  var resHtml = layer.file
+    ? '<div class="resource-box">&#9654; ' + layer.file + '</div>'
+    : '';
+
+  // params is [[name, value], ...] — ordered list from Designer
+  var params = layer.params || [];
+  var rows = '';
+  params.forEach(function(pair) {
+    var k = pair[0], v = pair[1];
+    var animated = Array.isArray(v) && v.length > 0 && v[0] && v[0].t !== undefined;
+    if (!animated && isDefaultVal(k, v)) return;
+    rows += '<tr' + (animated ? ' class="anim-row"' : '') + '>'
+      + '<td>' + k + '</td>'
+      + '<td>' + fmtVal(v) + '</td>'
+      + '</tr>';
+  });
+
+  var paramsHtml = rows
+    ? '<table class="fields-table">' + rows + '</table>'
+    : '<p class="no-fields">Default parameters</p>';
+
+  return '<div class="layer-card">'
+    + '<div class="layer-card-head ' + kind + '">'
+    + '<span>' + name + disTag + '</span>'
+    + '<span class="type-badge">' + mtype + '</span>'
+    + '</div>'
+    + '<div class="layer-card-body">'
+    + timingHtml
+    + resHtml
+    + paramsHtml
+    + '</div>'
+    + '</div>';
+}
+
+// ─────────────────────────────────────────────
+// Section block (cue → next cue)
+// ─────────────────────────────────────────────
+function renderSection(sec, idx, bpm) {
+  var cue = sec.cue || {};
+  var layers = sec.layers || [];
+  var tc = beatsToTC(cue.beat || 0, bpm);
+  var tcEnd = beatsToTC(sec.end || 0, bpm);
+  var note = cue.note || '';
+  var tags = (cue.tags || []).map(function(t) {
+    var types = ['TC','CUE','MIDI'];
+    return '<span class="tag-badge">' + (types[t.type] || '?') + (t.text ? ':'+t.text : '') + '</span>';
+  }).join('');
+
+  var xfadeHtml = '';
+  if (cue.xfade) {
+    var fadeTc = beatsToTC(cue.xfade.fade || 0, bpm);
+    var durTc  = beatsToTC(cue.xfade.dur  || 0, bpm);
+    var modeStr = cue.xfade.mode === 0 ? 'default' : 'mode ' + cue.xfade.mode;
+    xfadeHtml = '<span class="xfade-badge">&#x21C6; xfade&nbsp;' + fadeTc
+      + (cue.xfade.dur !== cue.xfade.fade ? '&nbsp;/ dur&nbsp;' + durTc : '')
+      + '&nbsp;(' + modeStr + ')</span>';
+  }
+
+  var layersHtml = layers.length
+    ? '<div class="layers-wrap">' + layers.map(function(l){ return renderLayerCard(l, bpm); }).join('') + '</div>'
+    : '<div class="no-layers">No active layer in this section</div>';
+
+  return '<div class="section-block">'
+    + '<div class="section-hdr">'
+    + '<span class="sec-num">' + (idx+1) + '</span>'
+    + '<span class="sec-tc mono">' + tc + '</span>'
+    + (note ? '<span class="sec-note">&ldquo;' + note + '&rdquo;</span>' : '')
+    + tags
+    + xfadeHtml
+    + '<span class="sec-range">&#8594; ' + tcEnd + '</span>'
+    + '</div>'
+    + layersHtml
+    + '</div>';
+}
+
+// ─────────────────────────────────────────────
+// Track block
+// ─────────────────────────────────────────────
+function renderTrack(track, idx) {
+  var name = track.name || ('Piste ' + (idx+1));
+  var sections = track.sections || [];
+  var bpm = track.bpm || 60;
+  currentBpm = bpm;
+  var beats = track.beats || 0;
+  var nLayers = sections.reduce(function(s,sec){ return s + (sec.layers||[]).length; }, 0);
+
+  var body = sections.length
+    ? sections.map(function(sec, si) { return renderSection(sec, si, bpm); }).join('')
+    : '<div class="no-layers" style="padding:12px 16px">No section found</div>';
+
+  return '<div class="track-block" id="track-'+idx+'">'
+    + '<div class="track-header" onclick="toggleTrack('+idx+')">'
+    + '<span class="track-title">' + name + '</span>'
+    + '<span>'
+    + '<span class="track-meta">' + beatsToTC(beats, bpm) + ' &nbsp;·&nbsp; '
+    + bpm + ' BPM &nbsp;·&nbsp; ' + sections.length + ' sections</span>'
+    + ' <span class="chevron">&#9662;</span>'
+    + '</span>'
+    + '</div>'
+    + '<div class="track-body">' + body + '</div>'
+    + '</div>';
+}
+
+// ─────────────────────────────────────────────
+// Root render
+// ─────────────────────────────────────────────
+function renderData(data) {
+  var tracks = data.tracks || [];
+  var errors = data.errors || [];
+  var html = '';
+  if (errors.length) html += '<div class="error-box">&#9888; ' + errors.join('<br>') + '</div>';
+  if (!tracks.length) {
+    html += '<div class="empty-state"><div class="icon">&#9888;</div>'
+      + '<p>No track found</p>'
+      + '<small>Check that a timeline is open in Designer.</small></div>';
+  } else {
+    html += tracks.map(function(t, i) { return renderTrack(t, i); }).join('');
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+function toggleTrack(idx) {
+  document.getElementById('track-'+idx).classList.toggle('collapsed');
+}
+
+// ─────────────────────────────────────────────
+// Export HTML report
+// ─────────────────────────────────────────────
+function exportReport() {
+  if (!lastData) return;
+
+  var tracks = lastData.tracks || [];
+  var projectName = (lastData.project || {}).name || 'Spectacle';
+  var now = new Date().toLocaleString('fr-FR');
+
+  function fmtValExport(v, bpm) {
+    bpm = bpm || 60;
+    if (v === null || v === undefined) return '&mdash;';
+    if (Array.isArray(v) && v.length > 0 && v[0] !== null && typeof v[0] === 'object' && 't' in v[0]) {
+      return v.map(function(k) {
+        var val = (typeof k.v === 'number') ? (k.v % 1 === 0 ? String(k.v) : parseFloat(k.v.toFixed(4))+'') : String(k.v);
+        return '<span style="display:inline-block;background:#f0e8ff;border:1px solid #c4a8e8;border-radius:3px;padding:1px 4px;font-size:9px;margin:1px">'
+          + beatsToTC(k.t, bpm)+'&nbsp;:&nbsp;'+val+'</span>';
+      }).join('<span style="color:#999;font-size:9px">&#8594;</span>');
+    }
+    if (typeof v === 'number') return v % 1 === 0 ? String(v) : parseFloat(v.toFixed(4))+'';
+    return String(v);
+  }
+
+  var bgMap = {content:'#e8f5ee',fx:'#ede8f8',audio:'#fdf3e7',disabled:'#f0f0f0',unknown:'#f5f5e8'};
+  var clMap = {content:'#2e7d52',fx:'#6a3fc8',audio:'#b45309',disabled:'#999',unknown:'#888'};
+
+  function xLayer(layer, bpm) {
+    bpm = bpm || 60;
+    var kind = classifyLayer(layer);
+    var bg = bgMap[kind], cl = clMap[kind];
+    var tcStart = beatsToTC(layer.start || 0, bpm);
+    var tcEnd   = beatsToTC(layer.end   || 0, bpm);
+    var timingColors = {content:'#2e7d52',fx:'#6a3fc8',audio:'#b45309',disabled:'#888',unknown:'#888'};
+    var timingBgs    = {content:'#eaf6f0',fx:'#f0ebfc',audio:'#fef4e6',disabled:'#f4f4f4',unknown:'#f4f4f4'};
+    var timingHtml = '<div style="font-size:10px;font-family:monospace;font-weight:600;padding:3px 8px;margin:-6px -10px 8px -10px;border-bottom:1px solid rgba(0,0,0,0.06);background:'+timingBgs[kind]+';color:'+timingColors[kind]+'">'
+      + tcStart + ' &#8594; ' + tcEnd + '</div>';
+    var params = layer.params || [];
+    var rows = '';
+    params.forEach(function(pair) {
+      var k = pair[0], v = pair[1];
+      var animated = Array.isArray(v) && v.length > 0 && v[0] && v[0].t !== undefined;
+      if (!animated && isDefaultVal(k, v)) return;
+      rows += '<tr><td style="color:#888;font-family:monospace;width:42%;padding:2px 4px;border-bottom:1px solid #f0f0f0">'
+        + k + '</td><td style="font-family:monospace;padding:2px 4px;border-bottom:1px solid #f0f0f0'
+        + (animated ? ';color:#6a3fc8' : '') + '">' + fmtValExport(v, bpm) + '</td></tr>';
+    });
+    var resHtml = layer.file
+      ? '<div style="background:#fff8e1;border-left:3px solid #e8a44a;padding:3px 7px;font-size:10px;color:#b45309;margin-bottom:5px;font-family:monospace;word-break:break-all">&#9654; '+layer.file+'</div>'
+      : '';
+    return '<div style="border:1px solid #ddd;border-radius:4px;overflow:hidden;break-inside:avoid;margin-bottom:0">'
+      + '<div style="padding:6px 10px;background:'+bg+';color:'+cl+';font-weight:700;font-size:11px;display:flex;justify-content:space-between;align-items:center">'
+      + '<span>'+(layer.name||'(unnamed)')+(layer.on?'':' [OFF]')+'</span>'
+      + '<span style="font-size:9px;background:rgba(0,0,0,.07);padding:2px 5px;border-radius:3px">'+(layer.type||'?')+'</span>'
+      + '</div>'
+      + '<div style="padding:6px 10px;background:#fff">'
+      + timingHtml
+      + resHtml
+      + (rows ? '<table style="width:100%;border-collapse:collapse;font-size:10px">'+rows+'</table>'
+              : '<p style="font-size:10px;color:#bbb;font-style:italic;margin:0">Default parameters</p>')
+      + '</div></div>';
+  }
+
+  function xSection(sec, si, bpm) {
+    var cue = sec.cue || {};
+    var layers = sec.layers || [];
+    var tc = beatsToTC(cue.beat||0, bpm);
+    var tcEnd = beatsToTC(sec.end||0, bpm);
+    var note = cue.note ? '&ldquo;'+cue.note+'&rdquo;' : '';
+    var xfadeHtml = '';
+    if (cue.xfade) {
+      var fadeTc = beatsToTC(cue.xfade.fade||0, bpm);
+      var durTc  = beatsToTC(cue.xfade.dur||0, bpm);
+      var modeStr = cue.xfade.mode === 0 ? 'default' : 'mode '+cue.xfade.mode;
+      xfadeHtml = '<span style="font-size:9px;font-family:monospace;font-weight:700;color:#1565c0;background:#e3f0ff;border:1px solid #90bff0;border-radius:3px;padding:2px 6px;white-space:nowrap">'
+        + '&#x21C6; xfade&nbsp;'+fadeTc
+        + (cue.xfade.dur !== cue.xfade.fade ? '&nbsp;/ dur&nbsp;'+durTc : '')
+        + '&nbsp;('+modeStr+')</span>';
+    }
+    var layersGrid = layers.length
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;padding:8px 12px;background:#fafafa">'+layers.map(function(l){return xLayer(l,bpm);}).join('')+'</div>'
+      : '<div style="padding:6px 14px;font-size:10px;color:#bbb;font-style:italic">No active layer</div>';
+    return '<div style="border-bottom:1px solid #e0e0e0">'
+      + '<div style="padding:6px 14px;background:#f0f4ff;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      + '<span style="background:#1a1a2e;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">'+(si+1)+'</span>'
+      + '<span style="font-family:monospace;font-weight:700;color:#0055cc;font-size:11px">'+tc+'</span>'
+      + (note ? '<span style="color:#333;font-style:italic;font-size:11px">'+note+'</span>' : '')
+      + xfadeHtml
+      + '<span style="margin-left:auto;font-family:monospace;font-size:10px;color:#999">&#8594; '+tcEnd+'</span>'
+      + '</div>'
+      + layersGrid
+      + '</div>';
+  }
+
+  function xTrack(track) {
+    var sections = track.sections || [];
+    var bpm = track.bpm || 60;
+    var body = sections.map(function(s,i){ return xSection(s,i,bpm); }).join('');
+    return '<div style="border:1px solid #ddd;border-radius:6px;margin-bottom:20px;overflow:hidden;break-inside:avoid">'
+      + '<div style="background:#1a1a2e;color:#fff;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">'
+      + '<span style="font-weight:700;font-size:13px">'+(track.name||'Piste')+'</span>'
+      + '<span style="font-size:10px;color:#aaa">'+(track.beats||0).toFixed(0)+' beats &middot; '+bpm+' BPM &middot; '+sections.length+' sections</span>'
+      + '</div>'
+      + body
+      + '</div>';
+  }
+
+  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
+    + '<title>Show Report \u2014 '+projectName+'</title>'
+    + '<style>'
+    + '*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}'
+    + 'body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#1a1a1a;background:#fff;padding:20px;max-width:1200px;margin:0 auto}'
+    + 'h1{font-size:20px;font-weight:700;margin:0 0 4px}p.meta{font-size:11px;color:#888;margin:0 0 24px}'
+    + '@media print{div{break-inside:avoid}}@page{margin:12mm}'
+    + '</style></head><body>'
+    + '<h1>Show Report \u2014 '+projectName+'</h1>'
+    + '<p class="meta">Generated on '+now+' &middot; '+tracks.length+' track(s)</p>'
+    + tracks.map(xTrack).join('')
+    + '</body></html>';
+
+  // Write into embedded iframe — avoids all CEF popup/download restrictions
+  var frame = document.getElementById('reportFrame');
+  var fd = frame.contentDocument || frame.contentWindow.document;
+  fd.open();
+  fd.write(html);
+  fd.close();
+
+  frame.style.display = 'block';
+  document.getElementById('reportBar').classList.add('visible');
+  document.getElementById('content').style.display = 'none';
+  document.querySelector('.topbar').style.display = 'none';
+  document.querySelector('.statusbar').style.display = 'none';
+}
+
+function closeReport() {
+  document.getElementById('reportFrame').style.display = 'none';
+  document.getElementById('reportBar').classList.remove('visible');
+  document.getElementById('content').style.display = '';
+  document.querySelector('.topbar').style.display = '';
+  document.querySelector('.statusbar').style.display = '';
+}
+</script>
+</body>
+</html>

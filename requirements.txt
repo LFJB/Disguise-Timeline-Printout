@@ -1,0 +1,4 @@
+designer-plugin>=1.2.0
+designer-plugin-pystub
+jinja2
+zeroconf

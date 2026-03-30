@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect x="4" y="4" width="56" height="56" rx="8" fill="#1a1a2e" stroke="#404040" stroke-width="2"/>
+  <!-- Track 1: full-width blue bar -->
+  <rect x="10" y="10" width="44" height="8" rx="2" fill="#4a9eff"/>
+  <!-- Track 2: two green blocks with a gap (section split) -->
+  <rect x="10" y="22" width="20" height="8" rx="2" fill="#4caf82"/>
+  <rect x="34" y="22" width="20" height="8" rx="2" fill="#4caf82" opacity="0.75"/>
+  <!-- Track 3: purple block, offset start -->
+  <rect x="22" y="34" width="32" height="8" rx="2" fill="#9b7fe8"/>
+  <!-- Track 4: orange short block -->
+  <rect x="10" y="46" width="18" height="8" rx="2" fill="#e8a44a"/>
+  <!-- Section divider line -->
+  <rect x="32" y="8" width="1.5" height="48" rx="0.75" fill="white" fill-opacity="0.18"/>
+</svg>

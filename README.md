@@ -1,4 +1,4 @@
-# Disguise Timeline Exporter
+# Disguise Timeline Printout
 
 A local Disguise Designer plugin that extracts timeline data — tracks, sections, cues, layers and their parameters — and generates a printable HTML report for show reproduction.
 
@@ -19,10 +19,10 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 
 ## Installation
 
-1. Copy the `timeline-exporter-plugin/` folder into your Disguise project's `plugins/` directory:
+1. Copy the `timeline-printout-plugin/` folder into your Disguise project's `plugins/` directory:
 
 ```
-{project}/plugins/timeline-exporter-plugin/
+{project}/plugins/timeline-printout-plugin/
   d3plugin.json
   index.html
   icon.svg
@@ -34,7 +34,7 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 
 ## Usage
 
-1. Open the **Timeline Exporter** plugin inside Designer
+1. Open the **Timeline Printout** plugin inside Designer
 2. Click **Extract** — the plugin reads all tracks from the current set list
 3. Browse the extracted data directly in the plugin panel
 4. Click **Report** to generate a printable HTML report
@@ -92,7 +92,7 @@ pip install -r requirements.txt
 ## File structure
 
 ```
-timeline-exporter-plugin/   ← Drop into {project}/plugins/
+timeline-printout-plugin/   ← Drop into {project}/plugins/
   d3plugin.json             ← Plugin manifest
   index.html                ← Self-contained plugin (HTML + CSS + JS + Python extractor)
   icon.svg                  ← Plugin icon

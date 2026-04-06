@@ -16,7 +16,7 @@ from generate_report import generate_report
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Disguise Timeline Exporter — extract + report in one step"
+        description="Disguise Timeline Printout — extract + report in one step"
     )
     parser.add_argument("--host", required=True, help="Designer machine IP or hostname")
     parser.add_argument("--port", type=int, default=80)

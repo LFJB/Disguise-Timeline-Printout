@@ -17,6 +17,14 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 
 ---
 
+## Requirements
+
+- Disguise Designer r32 or later
+- **Application Mode must be enabled** in Designer — without it, the print dialog will not open. Enable it via: *System → System Settings → Enable Application Mode*
+- No external dependencies — single self-contained HTML file
+
+---
+
 ## Installation
 
 1. Copy the `timeline-printout-plugin/` folder into your Disguise project's `plugins/` directory:
@@ -35,10 +43,9 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 ## Usage
 
 1. Open the **Timeline Printout** plugin inside Designer
-2. Click **Extract** — the plugin reads all tracks from the current set list
-3. Browse the extracted data directly in the plugin panel
-4. Click **Report** to generate a printable HTML report
-5. Use **Print / PDF** to save or print the report
+3. Click **Extract** — the plugin reads all tracks from the current set list
+4. Browse the extracted data directly in the plugin panel
+5. Click **Print / PDF** to generate and immediately print or save the report as PDF
 
 ---
 
@@ -63,10 +70,6 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 
 ---
 
-## Requirements
-
-- Disguise Designer r32 or later (uses the local plugin API + Python 2.7 embedded interpreter)
-- No external dependencies — single self-contained HTML file
 
 ---
 

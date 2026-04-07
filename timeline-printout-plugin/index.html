@@ -371,12 +371,11 @@
     <div class="subtitle">Track-by-track extraction for show reproduction</div>
   </div>
   <button class="btn-primary" id="btnExtract" onclick="extractTimeline()">&#x21BB; Extract</button>
-  <button class="btn-export" id="btnExport" onclick="exportReport()" disabled>&#x2193; Report</button>
+  <button class="btn-export" id="btnExport" onclick="exportReport()" disabled>&#x1F5A8; Print / PDF</button>
 </div>
 
 <div class="report-bar" id="reportBar">
   <button class="btn-secondary" onclick="closeReport()" style="font-size:11px">&#8592; Back</button>
-  <button class="btn-primary" onclick="document.getElementById('reportFrame').contentWindow.print()" style="font-size:11px">Print / PDF</button>
 </div>
 <iframe id="reportFrame" name="reportFrame"></iframe>
 
@@ -917,7 +916,7 @@ function exportReport() {
     var tcEnd   = beatsToTC(layer.end   || 0, bpm);
     var timingColors = {content:'#2e7d52',fx:'#6a3fc8',audio:'#b45309',disabled:'#888',unknown:'#888'};
     var timingBgs    = {content:'#eaf6f0',fx:'#f0ebfc',audio:'#fef4e6',disabled:'#f4f4f4',unknown:'#f4f4f4'};
-    var timingHtml = '<div style="font-size:10px;font-family:monospace;font-weight:600;padding:3px 8px;margin:-6px -10px 8px -10px;border-bottom:1px solid rgba(0,0,0,0.06);background:'+timingBgs[kind]+';color:'+timingColors[kind]+'">'
+    var timingHtml = '<div style="font-size:9px;font-family:monospace;font-weight:600;padding:2px 6px;margin:-3px -6px 5px -6px;border-bottom:1px solid rgba(0,0,0,0.06);background:'+timingBgs[kind]+';color:'+timingColors[kind]+'">'
       + tcStart + ' &#8594; ' + tcEnd + '</div>';
     var params = layer.params || [];
     var rows = '';
@@ -925,23 +924,23 @@ function exportReport() {
       var k = pair[0], v = pair[1];
       var animated = Array.isArray(v) && v.length > 0 && v[0] && v[0].t !== undefined;
       if (!animated && isDefaultVal(k, v)) return;
-      rows += '<tr><td style="color:#888;font-family:monospace;width:42%;padding:2px 4px;border-bottom:1px solid #f0f0f0">'
-        + k + '</td><td style="font-family:monospace;padding:2px 4px;border-bottom:1px solid #f0f0f0'
+      rows += '<tr><td style="color:#888;font-family:monospace;width:42%;padding:1px 3px;border-bottom:1px solid #f0f0f0">'
+        + k + '</td><td style="font-family:monospace;padding:1px 3px;border-bottom:1px solid #f0f0f0'
         + (animated ? ';color:#6a3fc8' : '') + '">' + fmtValExport(v, bpm) + '</td></tr>';
     });
     var resHtml = layer.file
-      ? '<div style="background:#fff8e1;border-left:3px solid #e8a44a;padding:3px 7px;font-size:10px;color:#b45309;margin-bottom:5px;font-family:monospace;word-break:break-all">&#9654; '+layer.file+'</div>'
+      ? '<div style="background:#fff8e1;border-left:2px solid #e8a44a;padding:2px 5px;font-size:9px;color:#b45309;margin-bottom:4px;font-family:monospace;word-break:break-all">&#9654; '+layer.file+'</div>'
       : '';
-    return '<div style="border:1px solid #ddd;border-radius:4px;overflow:hidden;break-inside:avoid;margin-bottom:0">'
-      + '<div style="padding:6px 10px;background:'+bg+';color:'+cl+';font-weight:700;font-size:11px;display:flex;justify-content:space-between;align-items:center">'
+    return '<div class="layer-card" style="border:1px solid #ddd;border-radius:3px;overflow:hidden;margin-bottom:0">'
+      + '<div style="padding:3px 6px;background:'+bg+';color:'+cl+';font-weight:700;font-size:10px;display:flex;justify-content:space-between;align-items:center">'
       + '<span>'+(layer.name||'(unnamed)')+(layer.on?'':' [OFF]')+'</span>'
-      + '<span style="font-size:9px;background:rgba(0,0,0,.07);padding:2px 5px;border-radius:3px">'+(layer.type||'?')+'</span>'
+      + '<span style="font-size:8px;background:rgba(0,0,0,.07);padding:1px 4px;border-radius:2px">'+(layer.type||'?')+'</span>'
       + '</div>'
-      + '<div style="padding:6px 10px;background:#fff">'
+      + '<div style="padding:3px 6px;background:#fff">'
       + timingHtml
       + resHtml
-      + (rows ? '<table style="width:100%;border-collapse:collapse;font-size:10px">'+rows+'</table>'
-              : '<p style="font-size:10px;color:#bbb;font-style:italic;margin:0">Default parameters</p>')
+      + (rows ? '<table style="width:100%;border-collapse:collapse;font-size:9px">'+rows+'</table>'
+              : '<p style="font-size:9px;color:#bbb;font-style:italic;margin:0">Default parameters</p>')
       + '</div></div>';
   }
 
@@ -962,15 +961,15 @@ function exportReport() {
         + '&nbsp;('+modeStr+')</span>';
     }
     var layersGrid = layers.length
-      ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;padding:8px 12px;background:#fafafa">'+layers.map(function(l){return xLayer(l,bpm);}).join('')+'</div>'
-      : '<div style="padding:6px 14px;font-size:10px;color:#bbb;font-style:italic">No active layer</div>';
-    return '<div style="border-bottom:1px solid #e0e0e0">'
-      + '<div style="padding:6px 14px;background:#f0f4ff;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-      + '<span style="background:#1a1a2e;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">'+(si+1)+'</span>'
-      + '<span style="font-family:monospace;font-weight:700;color:#0055cc;font-size:11px">'+tc+'</span>'
-      + (note ? '<span style="color:#333;font-style:italic;font-size:11px">'+note+'</span>' : '')
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:3px;padding:4px 8px;background:#fafafa">'+layers.map(function(l){return xLayer(l,bpm);}).join('')+'</div>'
+      : '<div style="padding:3px 10px;font-size:9px;color:#bbb;font-style:italic">No active layer</div>';
+    return '<div'+(layers.length?' class="section"':'')+' style="border-bottom:1px solid #e0e0e0">'
+      + '<div style="padding:3px 10px;background:#f0f4ff;display:flex;align-items:center;gap:8px;flex-wrap:wrap;break-after:avoid;page-break-after:avoid">'
+      + '<span style="background:#1a1a2e;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px">'+(si+1)+'</span>'
+      + '<span style="font-family:monospace;font-weight:700;color:#0055cc;font-size:10px">'+tc+'</span>'
+      + (note ? '<span style="color:#333;font-style:italic;font-size:10px">'+note+'</span>' : '')
       + xfadeHtml
-      + '<span style="margin-left:auto;font-family:monospace;font-size:10px;color:#999">&#8594; '+tcEnd+'</span>'
+      + '<span style="margin-left:auto;font-family:monospace;font-size:9px;color:#999">&#8594; '+tcEnd+'</span>'
       + '</div>'
       + layersGrid
       + '</div>';
@@ -980,10 +979,10 @@ function exportReport() {
     var sections = track.sections || [];
     var bpm = track.bpm || 60;
     var body = sections.map(function(s,i){ return xSection(s,i,bpm); }).join('');
-    return '<div style="border:1px solid #ddd;border-radius:6px;margin-bottom:20px;overflow:hidden;break-inside:avoid">'
-      + '<div style="background:#1a1a2e;color:#fff;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">'
-      + '<span style="font-weight:700;font-size:13px">'+(track.name||'Piste')+'</span>'
-      + '<span style="font-size:10px;color:#aaa">'+(track.beats||0).toFixed(0)+' beats &middot; '+bpm+' BPM &middot; '+sections.length+' sections</span>'
+    return '<div class="track" style="border:1px solid #ccc;border-radius:4px;overflow:hidden">'
+      + '<div style="background:#1a1a2e;color:#fff;padding:5px 10px;display:flex;justify-content:space-between;align-items:center">'
+      + '<span style="font-weight:700;font-size:11px">'+(track.name||'Piste')+'</span>'
+      + '<span style="font-size:9px;color:#aaa">'+(track.beats||0).toFixed(0)+' beats &middot; '+bpm+' BPM &middot; '+sections.length+' sections</span>'
       + '</div>'
       + body
       + '</div>';
@@ -993,12 +992,16 @@ function exportReport() {
     + '<title>Show Report \u2014 '+projectName+'</title>'
     + '<style>'
     + '*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}'
-    + 'body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#1a1a1a;background:#fff;padding:20px;max-width:1200px;margin:0 auto}'
-    + 'h1{font-size:20px;font-weight:700;margin:0 0 4px}p.meta{font-size:11px;color:#888;margin:0 0 24px}'
-    + '@media print{div{break-inside:avoid}}@page{margin:12mm}'
+    + 'body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#1a1a1a;background:#fff;padding:0;margin:0}'
+    + 'h1{font-size:14px;font-weight:700;margin:0 0 2px}'
+    + 'p.meta{font-size:9px;color:#888;margin:0 0 8px}'
+    + '.track{break-inside:auto;page-break-inside:auto;margin-bottom:8px}'
+    + '.section{break-inside:auto;page-break-inside:auto}'
+    + '.layer-card{break-inside:avoid;page-break-inside:avoid}'
+    + '@page{size:A4 portrait;margin:10mm}'
     + '</style></head><body>'
     + '<h1>Show Report \u2014 '+projectName+'</h1>'
-    + '<p class="meta">Generated on '+now+' &middot; '+tracks.length+' track(s)</p>'
+    + '<p class="meta">'+now+' &middot; '+tracks.length+' piste(s)</p>'
     + tracks.map(xTrack).join('')
     + '</body></html>';
 
@@ -1014,6 +1017,9 @@ function exportReport() {
   document.getElementById('content').style.display = 'none';
   document.querySelector('.topbar').style.display = 'none';
   document.querySelector('.statusbar').style.display = 'none';
+
+  // Launch print dialog immediately — no need to preview first
+  setTimeout(function() { frame.contentWindow.print(); }, 100);
 }
 
 function closeReport() {

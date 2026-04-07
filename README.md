@@ -20,7 +20,7 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 ## Requirements
 
 - Disguise Designer r32 or later
-- **Application Mode must be enabled** in Designer — without it, the print dialog will not open. Enable it via: *System → System Settings → Enable Application Mode*
+- **Application Mode must be enabled** in Designer — without it, the print dialog will not open. Enable it via: *Manager → Machine Settings → Enable Application Mode*
 - No external dependencies — single self-contained HTML file
 
 ---

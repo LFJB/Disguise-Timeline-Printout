@@ -2,7 +2,7 @@
 
 A local Disguise Designer plugin that extracts timeline data — tracks, sections, cues, layers and their parameters — and generates a printable HTML report for show reproduction.
 
-![Plugin screenshot](docs/screenshot.png)
+![Plugin screenshot](docs/Screenshot.png)
 
 ---
 

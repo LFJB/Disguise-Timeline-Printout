@@ -370,6 +370,9 @@
     <h1>Timeline Printout</h1>
     <div class="subtitle">Track-by-track extraction for show reproduction</div>
   </div>
+  <label style="font-size:10px; color:var(--text2); display:flex; align-items:center; gap:5px; white-space:nowrap; cursor:pointer;">
+    <input type="checkbox" id="chkParams" checked> Include params
+  </label>
   <button class="btn-primary" id="btnExtract" onclick="extractTimeline()">&#x21BB; Extract</button>
   <button class="btn-export" id="btnExport" onclick="exportReport()" disabled>&#x1F5A8; Print / PDF</button>
 </div>
@@ -394,9 +397,45 @@
 
 <script>
 // ─────────────────────────────────────────────
-// Python 2.7 script to run inside Designer
+// Python 2.7 scripts to run inside Designer
 // ─────────────────────────────────────────────
-const EXTRACTOR_SCRIPT = `
+
+// Step 1 — list tracks (fast, no params)
+const LISTER_SCRIPT = `
+import json
+
+def safe(fn, default=''):
+    try: return fn()
+    except: return default
+
+result = {'project': {'name': ''}, 'count': 0, 'source': '', 'errors': []}
+result['project']['name'] = safe(lambda: str(state.projectName), '')
+
+try:
+    sl = guisystem.currentSetList
+    if sl is not None:
+        tracks = list(sl.tracks)
+        result['count'] = len(tracks)
+        result['source'] = 'setlist'
+    else:
+        result['count'] = 1
+        result['source'] = 'track'
+except Exception as e:
+    result['errors'].append('list: ' + str(e))
+    try:
+        guisystem.track
+        result['count'] = 1
+        result['source'] = 'track'
+    except Exception as e2:
+        result['errors'].append('fallback: ' + str(e2))
+
+result_json = json.dumps(result)
+print(result_json)
+result_json
+`;
+
+// Step 2 — extract one track (injected vars: INCLUDE_PARAMS, TRACK_INDEX)
+const TRACK_SCRIPT = `
 import json, re
 
 def safe(fn, default=''):
@@ -434,6 +473,8 @@ def resolve_opt(v, opts):
     return v
 
 def get_fields(layer):
+    if not INCLUDE_PARAMS:
+        return []
     # Return ordered list [[label, value], ...] to preserve Designer's sequence order
     fields = []
     n = safe(lambda: layer.nSequences(), 0)
@@ -588,24 +629,22 @@ def get_track(track):
         'sections': sections,
     }
 
-result = {'project': {}, 'tracks': [], 'errors': []}
-result['project']['name'] = safe(lambda: str(state.projectName), '')
-
-found = False
+result = {'track': None, 'errors': []}
 try:
     sl = guisystem.currentSetList
     if sl is not None:
-        for t in sl.tracks:
-            result['tracks'].append(get_track(t))
-        found = True
+        tracks = list(sl.tracks)
+        if TRACK_INDEX < len(tracks):
+            result['track'] = get_track(tracks[TRACK_INDEX])
+        else:
+            result['errors'].append('index out of range: ' + str(TRACK_INDEX))
+    else:
+        if TRACK_INDEX == 0:
+            result['track'] = get_track(guisystem.track)
+        else:
+            result['errors'].append('no setlist, index must be 0')
 except Exception as e:
-    result['errors'].append('setlist: ' + str(e))
-
-if not found:
-    try:
-        result['tracks'].append(get_track(guisystem.track))
-    except Exception as e:
-        result['errors'].append('track: ' + str(e))
+    result['errors'].append('track ' + str(TRACK_INDEX) + ': ' + str(e))
 
 result_json = json.dumps(result)
 print(result_json)
@@ -627,52 +666,72 @@ function setStatus(msg, type = '') {
 // ─────────────────────────────────────────────
 // Extract from Designer
 // ─────────────────────────────────────────────
+async function runScript(script) {
+  const res = await fetch('/api/session/python/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ script: script, returnType: 'str' }),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+  const response = await res.json();
+  if (response.status && response.status.code !== 0) {
+    throw new Error(response.status.message || 'Designer error');
+  }
+  // Designer puts output in d3Log/pythonLog; returnValue may be the string "null"
+  let raw = null;
+  var rv = response.returnValue;
+  if (rv !== null && rv !== undefined && rv !== 'null') {
+    try { raw = (typeof rv === 'string') ? JSON.parse(rv) : rv; } catch(e) {}
+  }
+  if (!raw) {
+    var logStr = response.d3Log || response.pythonLog || '';
+    var m = logStr.match(/^(\{[\s\S]*\})/);
+    if (m) { try { raw = JSON.parse(m[1]); } catch(e) {} }
+  }
+  if (!raw) throw new Error('Réponse vide de Designer. Réponse brute : ' + JSON.stringify(response));
+  return raw;
+}
+
 async function extractTimeline() {
   const btn = document.getElementById('btnExtract');
   btn.disabled = true;
-  setStatus('Extraction en cours…', 'loading');
+  setStatus('Lecture de la liste des pistes…', 'loading');
 
   try {
-    const res = await fetch('/api/session/python/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ script: EXTRACTOR_SCRIPT, returnType: 'str' }),
-    });
+    const includeParams = document.getElementById('chkParams').checked;
+    const includeStr = 'INCLUDE_PARAMS = ' + (includeParams ? 'True' : 'False') + '\n';
 
-    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
-    const response = await res.json();
+    // Step 1: list tracks
+    const listResult = await runScript(LISTER_SCRIPT);
+    const count = listResult.count || 0;
+    const projectName = (listResult.project || {}).name || '';
+    const errors = listResult.errors || [];
 
-    if (response.status && response.status.code !== 0) {
-      throw new Error(response.status.message || 'Designer error');
+    if (count === 0) throw new Error('Aucune piste trouvée dans le projet.');
+
+    // Step 2: extract track by track
+    const tracks = [];
+    for (let i = 0; i < count; i++) {
+      setStatus(`Extraction piste ${i + 1} / ${count}…`, 'loading');
+      const trackScript = includeStr + 'TRACK_INDEX = ' + i + '\n' + TRACK_SCRIPT;
+      const trackResult = await runScript(trackScript);
+      if (trackResult.track) tracks.push(trackResult.track);
+      if (trackResult.errors && trackResult.errors.length) errors.push(...trackResult.errors);
     }
 
-    // Designer puts output in d3Log/pythonLog; returnValue may be the string "null"
-    let raw = null;
-    var rv = response.returnValue;
-    if (rv !== null && rv !== undefined && rv !== 'null') {
-      try { raw = (typeof rv === 'string') ? JSON.parse(rv) : rv; } catch(e) {}
-    }
-    if (!raw) {
-      // Parse JSON from d3Log or pythonLog (format: "{...}\nPython script took Xms\n")
-      var logStr = response.d3Log || response.pythonLog || '';
-      var m = logStr.match(/^(\{[\s\S]*\})/);
-      if (m) { try { raw = JSON.parse(m[1]); } catch(e) {} }
-    }
-    if (!raw) throw new Error('Réponse vide de Designer. Réponse brute : ' + JSON.stringify(response));
-
+    const raw = { project: { name: projectName }, tracks: tracks, errors: errors };
     lastData = raw;
     renderData(raw);
 
-    const nTracks = (raw.tracks || []).length;
-    const nCues   = (raw.tracks || []).reduce((s, t) => s + (t.sections || []).length, 0);
-    const nLayers = (raw.tracks || []).reduce((s, t) =>
+    const nCues   = tracks.reduce((s, t) => s + (t.sections || []).length, 0);
+    const nLayers = tracks.reduce((s, t) =>
       s + (t.sections || []).reduce((ss, sec) => ss + (sec.layers || []).length, 0), 0);
-    setStatus(`Extracted: ${nTracks} track(s), ${nLayers} layer(s), ${nCues} cue(s)`, 'ok');
+    setStatus(`Extracted: ${count} track(s), ${nLayers} layer(s), ${nCues} cue(s)`, 'ok');
 
     document.getElementById('btnExport').disabled = false;
 
-    if ((raw.errors || []).length > 0) {
-      setStatus(`Extracted with warnings — ${raw.errors.join(' | ')}`, 'ok');
+    if (errors.length > 0) {
+      setStatus(`Extracted with warnings — ${errors.join(' | ')}`, 'ok');
     }
   } catch (err) {
     setStatus('Error: ' + err.message, 'error');

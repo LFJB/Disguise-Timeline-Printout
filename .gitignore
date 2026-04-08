@@ -4,5 +4,3 @@ __pycache__/
 .env
 *.html.bak
 test_report.html
-CLAUDE.md
-.claude/

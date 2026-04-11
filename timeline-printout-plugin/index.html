@@ -129,6 +129,13 @@
   .track-block.collapsed .chevron { transform: rotate(-90deg); }
   .track-body { display: flex; flex-direction: column; }
   .track-block.collapsed .track-body { display: none; }
+  .track-dimmed { opacity: 0.35; }
+  .track-select {
+    cursor: pointer;
+    width: 14px; height: 14px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+  }
 
   /* ── Section label ── */
   .section-label {
@@ -656,6 +663,7 @@ result_json
 // ─────────────────────────────────────────────
 let lastData = null;
 var currentBpm = 60;
+var selectedTracks = new Set();
 
 function setStatus(msg, type = '') {
   const bar = document.getElementById('statusbar');
@@ -907,7 +915,10 @@ function renderTrack(track, idx) {
 
   return '<div class="track-block" id="track-'+idx+'">'
     + '<div class="track-header" onclick="toggleTrack('+idx+')">'
+    + '<span style="display:flex;align-items:center;gap:8px">'
+    + '<input type="checkbox" class="track-select" checked onclick="event.stopPropagation();toggleTrackSelect('+idx+',this.checked)">'
     + '<span class="track-title">' + name + '</span>'
+    + '</span>'
     + '<span>'
     + '<span class="track-meta">' + beatsToTC(beats, bpm) + ' &nbsp;·&nbsp; '
     + bpm + ' BPM &nbsp;·&nbsp; ' + sections.length + ' sections</span>'
@@ -924,6 +935,8 @@ function renderTrack(track, idx) {
 function renderData(data) {
   var tracks = data.tracks || [];
   var errors = data.errors || [];
+  // Reset selection — all tracks selected by default
+  selectedTracks = new Set(tracks.map(function(_, i) { return i; }));
   var html = '';
   if (errors.length) html += '<div class="error-box">&#9888; ' + errors.join('<br>') + '</div>';
   if (!tracks.length) {
@@ -934,6 +947,12 @@ function renderData(data) {
     html += tracks.map(function(t, i) { return renderTrack(t, i); }).join('');
   }
   document.getElementById('content').innerHTML = html;
+}
+
+function toggleTrackSelect(idx, checked) {
+  if (checked) selectedTracks.add(idx);
+  else selectedTracks.delete(idx);
+  document.getElementById('track-'+idx).classList.toggle('track-dimmed', !checked);
 }
 
 function toggleTrack(idx) {
@@ -1047,6 +1066,40 @@ function exportReport() {
       + '</div>';
   }
 
+  // Only export selected tracks
+  var tracksToExport = tracks.filter(function(_, i) { return selectedTracks.has(i); });
+
+  // Build cues summary table (only cues with a note)
+  var cueRows = '';
+  tracksToExport.forEach(function(track) {
+    var bpm = track.bpm || 60;
+    (track.sections || []).forEach(function(sec, si) {
+      var note = (sec.cue || {}).note || '';
+      if (!note) return;
+      var tc = beatsToTC((sec.cue.beat || 0), bpm);
+      cueRows += '<tr>'
+        + '<td style="color:#555;padding:3px 6px;border-bottom:1px solid #e8e8e8;white-space:nowrap">'+(track.name||'Track')+'</td>'
+        + '<td style="font-family:monospace;color:#999;padding:3px 6px;border-bottom:1px solid #e8e8e8;text-align:center">'+(si+1)+'</td>'
+        + '<td style="font-family:monospace;font-weight:700;color:#0055cc;padding:3px 6px;border-bottom:1px solid #e8e8e8;white-space:nowrap">'+tc+'</td>'
+        + '<td style="font-style:italic;padding:3px 6px;border-bottom:1px solid #e8e8e8">'+note+'</td>'
+        + '</tr>';
+    });
+  });
+  var cuesSummaryHtml = '';
+  if (cueRows) {
+    cuesSummaryHtml = '<div style="margin-bottom:10px;break-inside:avoid;page-break-inside:avoid">'
+      + '<div style="background:#1a1a2e;color:#fff;padding:4px 10px;font-weight:700;font-size:10px;border-radius:4px 4px 0 0">Cues</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:9px;border:1px solid #ccc;border-top:none;border-radius:0 0 4px 4px;overflow:hidden">'
+      + '<thead><tr>'
+      + '<th style="background:#f0f0f0;padding:3px 6px;text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ccc">Track</th>'
+      + '<th style="background:#f0f0f0;padding:3px 6px;text-align:center;font-weight:600;color:#555;border-bottom:1px solid #ccc">#</th>'
+      + '<th style="background:#f0f0f0;padding:3px 6px;text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ccc">TC</th>'
+      + '<th style="background:#f0f0f0;padding:3px 6px;text-align:left;font-weight:600;color:#555;border-bottom:1px solid #ccc">Note</th>'
+      + '</tr></thead>'
+      + '<tbody>'+cueRows+'</tbody>'
+      + '</table></div>';
+  }
+
   var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
     + '<title>Show Report \u2014 '+projectName+'</title>'
     + '<style>'
@@ -1060,8 +1113,9 @@ function exportReport() {
     + '@page{size:A4 portrait;margin:10mm}'
     + '</style></head><body>'
     + '<h1>Show Report \u2014 '+projectName+'</h1>'
-    + '<p class="meta">'+now+' &middot; '+tracks.length+' piste(s)</p>'
-    + tracks.map(xTrack).join('')
+    + '<p class="meta">'+now+' &middot; '+tracksToExport.length+' piste(s)</p>'
+    + cuesSummaryHtml
+    + tracksToExport.map(xTrack).join('')
     + '</body></html>';
 
   // Write into embedded iframe — avoids all CEF popup/download restrictions

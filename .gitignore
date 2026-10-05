@@ -5,3 +5,5 @@ __pycache__/
 *.html.bak
 test_report.html
 .claude/settings.local.json
+claude.md
+CLAUDE.md

@@ -1,0 +1,43 @@
+# Packs the Designer plugin folder + the Python CLI + manual + LISEZMOI into a
+# zip and publishes it in the GitHub Release "v<version>", version read from
+# the VERSION file. Same version pushed again = files replaced.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NAME: Disguise-Timeline-Printout
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pack and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="v$(head -1 VERSION | tr -d '[:space:]')"
+          PKG="$NAME-$VERSION"
+          mkdir -p "dist/$PKG"
+          cp -r timeline-printout-plugin "dist/$PKG/"
+          cp run.py extract.py extractor_inner.py generate_report.py test_with_mock.py \
+             requirements.txt LISEZMOI.txt "dist/$PKG/"
+          cp docs/manuel.html "dist/$PKG/$NAME-manuel.html"
+          cp docs/manuel.html "dist/$NAME-manuel.html"
+          (cd dist && zip -r "$PKG.zip" "$PKG")
+          unzip -l "dist/$PKG.zip"
+          FILES="dist/$PKG.zip dist/$NAME-manuel.html"
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release upload "$VERSION" $FILES --clobber
+          else
+            gh release create "$VERSION" $FILES --target "$GITHUB_SHA" \
+              --title "Disguise Timeline Printout $VERSION" \
+              --notes "Plugin Disguise Designer (r32+) + outil en ligne de commande Python 3. Zip : dossier timeline-printout-plugin/ à copier dans <projet>/plugins/, scripts de la ligne de commande, manuel et LISEZMOI (installation). Manuel aussi en fichier séparé : $NAME-manuel.html."
+          fi

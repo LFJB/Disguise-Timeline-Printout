@@ -17,6 +17,12 @@ A local Disguise Designer plugin that extracts timeline data — tracks, section
 
 ---
 
+## Download
+
+GitHub **Release** of this repo: `Disguise-Timeline-Printout-v<x>.zip` (the `timeline-printout-plugin/` folder to drop into the Designer project + the Python CLI files + French manual + `LISEZMOI.txt` with the install steps) and the manual alone, `Disguise-Timeline-Printout-manuel.html` (source: [`docs/manuel.html`](docs/manuel.html)). Built by `.github/workflows/release.yml` on every push to `main`; the version comes from the `VERSION` file.
+
+---
+
 ## Requirements
 
 - Disguise Designer r32 or later
@@ -106,6 +112,11 @@ generate_report.py          ← Python CLI: render HTML report from extracted JS
 run.py                      ← One-shot: extract + generate report
 test_with_mock.py           ← Run with mock data for development/testing
 requirements.txt            ← Python dependencies
+
+docs/manuel.html            ← French manual (also a release asset)
+LISEZMOI.txt                ← Install steps, packed in the release zip
+VERSION                     ← Release version (tag v<VERSION>)
+.github/workflows/release.yml ← Zip + release v<VERSION> on every push to main
 ```
 
 ---

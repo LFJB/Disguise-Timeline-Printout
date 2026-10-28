@@ -1,0 +1,36 @@
+Disguise Timeline Printout - plugin Disguise Designer + outil en ligne de commande
+Lightfield - Pacucci Jean-Baptiste - lightfield.be
+
+Lit la timeline du projet Designer ouvert (pistes, sections, cues, layers et
+leurs parametres) et en fait un rapport imprimable, sur papier ou en PDF.
+
+CONTENU DU ZIP
+  timeline-printout-plugin/                le plugin a copier dans le projet Designer
+  Disguise-Timeline-Printout-manuel.html   le manuel complet (ouvrir dans un navigateur)
+  run.py, extract.py, extractor_inner.py,
+  generate_report.py, test_with_mock.py,
+  requirements.txt                         la ligne de commande Python 3 (optionnelle)
+
+INSTALLER LE PLUGIN (Disguise Designer r32 ou plus recent)
+  1. Copier le dossier "timeline-printout-plugin" entier dans le dossier
+     plugins du projet :
+       <projet>\plugins\timeline-printout-plugin\
+  2. Activer l'Application Mode (sinon l'impression ne s'ouvre pas) :
+       Manager > Machine Settings > Enable Application Mode
+  3. Ouvrir ou relancer le projet : "Timeline Printout" apparait dans le
+     Plugin Launcher.
+
+UTILISER LE PLUGIN
+  Extract       lit la timeline, piste par piste
+  Include params  decoche = ne lit pas les parametres des layers
+  case a gauche de chaque piste = l'imprimer ou non
+  Print / PDF   ouvre le rapport et la boite d'impression (PDF possible)
+
+LIGNE DE COMMANDE (Python 3, optionnelle)
+  pip install -r requirements.txt
+  python run.py --host <ip de la machine Designer>      extraction + rapport
+  python run.py --host <ip> --port 80 --out mon_show     -> mon_show.json + mon_show.html
+  python test_with_mock.py                               essai sans Designer
+  Garder extractor_inner.py a cote de extract.py.
+
+Usage libre, redistribution sur autorisation.

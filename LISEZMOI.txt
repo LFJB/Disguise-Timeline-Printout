@@ -33,4 +33,4 @@ LIGNE DE COMMANDE (Python 3, optionnelle)
   python test_with_mock.py                               essai sans Designer
   Garder extractor_inner.py a cote de extract.py.
 
-Usage libre, redistribution sur autorisation.
+Licence MIT : libre d'utiliser, modifier et redistribuer (voir LICENSE).

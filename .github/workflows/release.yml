@@ -28,7 +28,7 @@ jobs:
           mkdir -p "dist/$PKG"
           cp -r timeline-printout-plugin "dist/$PKG/"
           cp run.py extract.py extractor_inner.py generate_report.py test_with_mock.py \
-             requirements.txt LISEZMOI.txt "dist/$PKG/"
+             requirements.txt LISEZMOI.txt LICENSE "dist/$PKG/"
           cp docs/manuel.html "dist/$PKG/$NAME-manuel.html"
           cp docs/manuel.html "dist/$NAME-manuel.html"
           (cd dist && zip -r "$PKG.zip" "$PKG")

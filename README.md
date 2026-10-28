@@ -136,4 +136,4 @@ Key Designer Python objects used:
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
